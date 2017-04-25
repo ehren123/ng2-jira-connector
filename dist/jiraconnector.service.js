@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var core_1 = require("@angular/core");
 var http_1 = require("@angular/http");
+var rxjs_1 = require("rxjs");
 require("rxjs/add/operator/toPromise");
 exports.JIRA_URL = new core_1.InjectionToken('JiraUrl');
 var JiraconnectorService = (function () {
@@ -14,36 +15,52 @@ var JiraconnectorService = (function () {
         this.headers.append('Authorization', 'Basic ' + window.btoa(username + ":" + password));
     };
     JiraconnectorService.prototype.createComment = function (issueId, comment) {
-        var _this = this;
-        return this._http.post(this.jiraUrl + 'issue/' + issueId + '/comment', JSON.stringify({ body: comment }), { headers: this.headers, withCredentials: true })
-            .toPromise()
-            .then(function (response) { return response.json(); })
-            .catch(function (error) { return _this._handleError(error); });
+        return this._post(this.jiraUrl + "issue/" + issueId + "/comment", JSON.stringify({ body: comment }));
     };
     JiraconnectorService.prototype.createIssue = function (fields) {
-        var _this = this;
-        return this._http.post(this.jiraUrl + 'issue', JSON.stringify({ fields: fields }), { headers: this.headers, withCredentials: true })
-            .toPromise()
-            .then(function (response) { return response.json(); })
-            .catch(function (error) { return _this._handleError(error); });
+        if (fields.customfields) {
+            this.mapCustomfields(fields);
+        }
+        return this._post(this.jiraUrl + "issue", JSON.stringify({ fields: fields }));
+    };
+    JiraconnectorService.prototype.editIssue = function (issueId, fields) {
+        if (fields.customfields) {
+            this.mapCustomfields(fields);
+        }
+        return this._put(this.jiraUrl + "issue/" + issueId, JSON.stringify({ fields: fields }));
     };
     JiraconnectorService.prototype.getIssue = function (issueId) {
-        var _this = this;
-        return this._http.get(this.jiraUrl + 'issue/' + issueId, { withCredentials: true })
-            .toPromise()
-            .then(function (response) { return response.json(); })
-            .catch(function (error) { return _this._handleError(error); });
+        return this._get(this.jiraUrl + "issue/" + issueId);
     };
     JiraconnectorService.prototype.searchIssues = function (jqlString) {
-        var _this = this;
-        return this._http.post(this.jiraUrl + 'search', { jql: jqlString }, { withCredentials: true })
-            .toPromise()
-            .then(function (response) { return response.json(); })
-            .catch(function (error) { return _this._handleError(error); });
+        return this._post(this.jiraUrl + "search", { jql: jqlString });
     };
-    JiraconnectorService.prototype._handleError = function (error) {
-        console.error('An error occurred', error);
-        return Promise.reject(error.message || error);
+    JiraconnectorService.prototype.mapCustomfields = function (fields) {
+        for (var key in fields.customfields) {
+            fields[key] = fields.customfields[key];
+        }
+        fields.customfields = null;
+    };
+    JiraconnectorService.prototype.handleError = function (error) {
+        return rxjs_1.Observable.throw(error.message || error);
+    };
+    JiraconnectorService.prototype._get = function (url) {
+        var _this = this;
+        return this._http.get(url, { withCredentials: true })
+            .map(function (response) { return response.json(); })
+            .catch(function (error) { return _this.handleError(error); });
+    };
+    JiraconnectorService.prototype._post = function (url, body) {
+        var _this = this;
+        return this._http.post(url, body, { headers: this.headers, withCredentials: true })
+            .map(function (response) { return response.json(); })
+            .catch(function (error) { return _this.handleError(error); });
+    };
+    JiraconnectorService.prototype._put = function (url, body) {
+        var _this = this;
+        return this._http.put(url, body, { headers: this.headers, withCredentials: true })
+            .map(function (response) { return response.json(); })
+            .catch(function (error) { return _this.handleError(error); });
     };
     return JiraconnectorService;
 }());
